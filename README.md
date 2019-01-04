@@ -1,2 +1,3 @@
 # ELEC491
-ELEC 491 yeee
+
+Kieran will put the git rules here eventually.
