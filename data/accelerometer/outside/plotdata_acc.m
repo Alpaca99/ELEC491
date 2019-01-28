@@ -1,5 +1,5 @@
 fileID = fopen("75cm90deg_inside.txt");
-C = textscan(fileID,'%f,%f,%f');
+C = textscan(fileID,'%f %f %f');
 fclose(fileID);
 X=C{1}
 Y=C{2}
