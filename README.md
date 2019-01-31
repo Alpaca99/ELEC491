@@ -1,6 +1,8 @@
 # ELEC491
 READ THIS BEFORE WORKING PLEASE :)
 
+Do not upload any non-code files to the repo without a really good reason. If you need to share a non-code document, please create an appropriate folder in Google Drive and collaborate there instead.
+
 If you are editing a file, please send a message to the group chat in the format of:
 
 "FILE_NAME - START"
