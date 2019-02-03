@@ -22,10 +22,10 @@ const char WEBSITE[] = "api.pushingbox.com"; //pushingbox API server
 const String devid = "v6D9FBC33D781722"; //device ID from Pushingbox 
 
 // WiFi network info.
-//char ssid[] = "ubcvisitor";
-//char wifiPassword[] = "";
- char ssid[] = "Verizon XT1565 5471";
- char wifiPassword[] = "76f34bc136c2";
+char ssid[] = "ubcvisitor";
+char wifiPassword[] = "";
+// char ssid[] = "Verizon XT1565 5471";
+// char wifiPassword[] = "76f34bc136c2";
 
 // Cayenne authentication info. This should be obtained from the Cayenne Dashboard.
 char username[] = "7f6eead0-9b4e-11e8-a42a-3f9fb83051a4";
@@ -41,7 +41,7 @@ WiFiClient client;  //Instantiate WiFi object
 
 void setup() {
   pinMode(Pin1, INPUT); 
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("GO000000000000000");
   Cayenne.begin(username, password, clientID, ssid, wifiPassword);
   // Initial data push to Cayenne
@@ -60,7 +60,7 @@ void loop() {
   uint32_t start_time;
   //state 1 variables
   float voltage;
-  float voltage_scaner[50];
+  float voltage_scaner[51];
   int scaner_index = 0;
   float maxV=0;
   float minV=1023;
@@ -99,10 +99,11 @@ void loop() {
     
     //scan the voltage
     voltage = analogRead(Pin1);
-    //voltage = 500;
     voltage_scaner[scaner_index] = voltage;
     //Serial.println(voltage_scaner[scaner_index]);
-        
+    
+
+    
     //Check array for suspect voltage difference
     if(scaner_index == 49){
       //Serial.println("OK");
@@ -110,29 +111,33 @@ void loop() {
       minV = 600.00;
       int index=0;
       while(index<50){
-        Serial.println(index);
+        //Serial.println(index);
         //Serial.println(voltage_scaner[index]);
         if(maxV<voltage_scaner[index]){
           maxV = voltage_scaner[index];
+          //Serial.println(maxV);
         }
         if(minV>voltage_scaner[index]){
           minV = voltage_scaner[index];
+          //Serial.println(minV);
         }
       index++;
       }
-
+      
+      float diff=maxV-minV;
+      Serial.println(maxV);
+      Serial.println(minV);
+      Serial.println(diff);
+    }
+    
     if(scaner_index<50){
       scaner_index ++;
     }
     else{
       scaner_index = 0;
     }
-      
-      float diff=maxV-minV;
-      Serial.println(diff);
-    }
     
-    if(maxV-minV > 100){                        //Change the threshold difference here!!!
+    if(maxV-minV > 150){                        //Change the threshold difference here!!!
       Serial.println("Suspect!");
       enter_state = true;
       state = 2;
@@ -153,7 +158,7 @@ void loop() {
     }
     
     //Serial.println(millis());
-
+    
     float Voltage_Log[1600];//Log size = (max impact duration)0.4 sec * (sampling frequency)4000 sample per second 
     int index2 = 50;
     while(index2<1600){
@@ -169,7 +174,6 @@ void loop() {
       Voltage_Log[index3]=voltage_scaner[index3];
       index3++;
     }
-
     
     //Check for duration
     int pulse_count=0;
@@ -202,6 +206,7 @@ void loop() {
         enter_state = true;
     }//leaving state
     
+    //state=3;
   }//End of state 2
 
    while(state == 3){
@@ -211,7 +216,6 @@ void loop() {
   
     // Condition is if a new impact has been registered
 
-    
     Cayenne.loop();
     
       //Start or API service using our WiFi Client through PushingBox
@@ -234,7 +238,7 @@ void loop() {
         {
           Serial.println("Error sending to Sheets!\n");
         }
-    
+    state = 0;
    }
    
    delay(1000);
@@ -246,13 +250,13 @@ void loop() {
 CAYENNE_OUT_DEFAULT()
 {
   // Send impact data to Cayenne
-  Cayenne.virtualWrite(0, 0);
+  //Cayenne.virtualWrite(0, 0);
 }
 
 // Default function for processing actuator commands from the Cayenne Dashboard.
 // You can also use functions for specific channels, e.g CAYENNE_IN(1) for channel 1 commands.
 CAYENNE_IN_DEFAULT()
 {
-  CAYENNE_LOG("Channel %u, value %s", request.channel, getValue.asString());
+  //CAYENNE_LOG("Channel %u, value %s", request.channel, getValue.asString());
   //Process message here. If there is an error set an error message using getValue.setError(), e.g getValue.setError("Error message");
 }

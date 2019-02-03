@@ -1,4 +1,4 @@
-#include <ezTime.h>
+//#include <ezTime.h>
 
 const int Pin1 = A0;
 
@@ -43,12 +43,20 @@ void setup() {
   pinMode(Pin1, INPUT); 
   Serial.begin(9600);
   Serial.println("GO000000000000000");
-  Cayenne.begin(username, password, clientID, ssid, wifiPassword);
+  WiFi.begin(ssid);
+//  while(WiFi.status()==WL_DISCONNECTED){
+//  Cayenne.begin(username, password, clientID, ssid, wifiPassword);
+//  delay(500);
+//  Serial.println(",");
+//  }
   // Initial data push to Cayenne
-  Cayenne.loop();
+//  Serial.println("G111111111111111");
+//  Cayenne.loop();
+//  Serial.println("G111111111111111");
   // Time setup
-  timeClient.begin();
-  timeClient.setTimeOffset(-28800);
+//  timeClient.begin();
+//  Serial.println("G111111111111111");
+//  timeClient.setTimeOffset(-28800);
   Serial.println("G111111111111111");
 }
 
