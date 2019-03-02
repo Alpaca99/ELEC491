@@ -22,9 +22,9 @@ const String devid = "v6D9FBC33D781722";		//device ID from Pushingbox
 
 // WiFi network info.
 char ssid[] = "ubcvisitor";
-char wifiPassword[] = "";
-// char ssid[] = "Verizon XT1565 5471";
-// char wifiPassword[] = "76f34bc136c2";
+char wifiPassword[] = ""; // No password required for the ubcvisitor network
+// However, the device MAC address should be registered with UBC IT before accessing the network
+// This is noted as a limited service, and devices that are inactive for extended periods of time are de-registered
 
 // Cayenne authentication info. This should be obtained from the Cayenne Dashboard.
 char username[] = "7f6eead0-9b4e-11e8-a42a-3f9fb83051a4";
@@ -33,11 +33,6 @@ char clientID[] = "e3a5ca00-1b69-11e9-898f-c12a468aadce";
 int bird_impact;
 int state;
 int disco = 0;
-
-
-// Impact storage
-//int impact = 0;
-//int previmpact = 0;
 
 // Wifi client for sending data to Google Sheets
 WiFiClient client;  //Instantiate WiFi object
@@ -86,15 +81,15 @@ void loop() {
 			enter_state = false;
 			Serial.println("State 0");
 		}
-    //Serial.println(millis());
+	//Serial.println(millis());
 		if((millis()-start_time) > 3000){
 			  state = 1;
 			  enter_state = true;
 		}//leaving state
-	}//End of state 0
+	}// End of state 0
 
 
-	//State 1: start scaning sample
+	// State 1: start scanning sample
 	while (state == 1){
     
 		start_time = micros();
@@ -105,14 +100,12 @@ void loop() {
 			scaner_index = 0;
 		}
     
-		//scan the voltage
+		// scan the voltage
 		voltage = analogRead(Pin1);
 		voltage_scaner[scaner_index] = voltage;
-		//Serial.println(voltage_scaner[scaner_index]);
+		// Serial.println(voltage_scaner[scaner_index]);
     
-
-    
-		//Check array for suspect voltage difference
+		//Check array for triggering voltage difference
 		if(scaner_index == 49){
 			//Serial.println("OK");
 			maxV = 300.00;
@@ -145,20 +138,20 @@ void loop() {
 			scaner_index = 0;
 		}
 		
-		if(maxV-minV > 150){                        //Change the threshold difference here!!!
+		if(maxV-minV > 150){                 // Change the threshold difference here!!!
 			Serial.println("Suspect!");
 			enter_state = true;
 			state = 2;
-		}//leaving state 1
+		}// leaving state 1
 	  
-		//loop time controller
+		// loop time controller
 		while(micros()-start_time<500){
 			//Serial.println("Wait");
 			//do nothing  
 		}
-	}//End of state1
+	} // End of state1
 
-  //State 2: wait until voltage get stable(time = 5 secend)
+  // State 2: wait until voltage get stable (Takes approximately 5 seconds)
 	while (state == 2){
 		if(enter_state == true){
 			enter_state = false;
@@ -167,7 +160,7 @@ void loop() {
     
 		//Serial.println(millis());
     
-		float Voltage_Log[800];//Log size = (max impact duration)0.4 sec * (sampling frequency)4000 sample per second 
+		float Voltage_Log[800]; // Log size = (max impact duration)0.4 sec * (sampling frequency)4000 sample per second 
 		int index2 = 50;
 		
 		while(index2<800){
@@ -185,7 +178,7 @@ void loop() {
 			index3++;
 		}
     
-		//Check for duration
+		// Check for duration
 		int pulse_count=0;
 		for(int i=0;i<800;i++){
 			//Serial.println(Voltage_Log[i]);
@@ -197,29 +190,29 @@ void loop() {
 				maxV = max(maxV,Voltage_Log[i]);
 				minV = min(minV,Voltage_Log[i]);
 			}    
-			if( maxV-minV > 100 && i%50==49){              //Change the threshold difference here!!!
+			if( maxV-minV > 100 && i%50==49){              // Change the threshold difference here!!!
 				pulse_count++;
 			}
       
 		}
     
     
-		//Voltage Damping
+		// Voltage Damping
 
 		Serial.println(pulse_count);
     
-		if((pulse_count<4)){//back to state 1
+		if((pulse_count<4)){ // back to state 1
 			state = 1;
 			enter_state = true;
-		}//leaving state
+		} // leaving state
 
-		else{//go to state 3
+		else{ // go to state 3
 			state = 3;
 			enter_state = true;
-		}//leaving state
+		} // leaving state
     
-	//state=3;
-	}//End of state 2
+	// state=3;
+	} // End of state 2
 
 	while(state == 3){
 		Serial.println("Bird Impact!");
@@ -233,7 +226,7 @@ void loop() {
 
 		Cayenne.loop();
     
-		//Start or API service using our WiFi Client through PushingBox
+		//Start API service using our WiFi Client through PushingBox
 		if (client.connect(WEBSITE, 80)){ 
 			//Serial.println(client.getTime());
 			// Send GET request for PushingBox, including timestamp and location
