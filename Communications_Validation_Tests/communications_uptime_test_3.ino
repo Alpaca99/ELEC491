@@ -127,3 +127,20 @@ CAYENNE_IN_DEFAULT()
 	CAYENNE_LOG("Channel %u, value %s", request.channel, getValue.asString());
 	//Process message here. If there is an error set an error message using getValue.setError(), e.g getValue.setError("Error message");
 }
+
+CAYENNE_CONNECTED()
+{
+	if(disco == 1){
+		Cayenne.virtualWrite(0,bird_impact);
+		disco = 0;
+	}
+}
+
+CAYENNE_DISCONNECTED()
+{
+	Serial.println("Cayenne Disconnected! Error code:404");
+	//Cayenne.begin(username, password, clientID, ssid, wifiPassword);
+	//Cayenne.loop();
+	Cayenne.virtualWrite(0,bird_impact);
+	disco = 1;
+}
