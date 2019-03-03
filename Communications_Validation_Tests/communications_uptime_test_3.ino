@@ -138,9 +138,6 @@ CAYENNE_CONNECTED()
 
 CAYENNE_DISCONNECTED()
 {
-	Serial.println("Cayenne Disconnected! Error code:404");
-	//Cayenne.begin(username, password, clientID, ssid, wifiPassword);
-	//Cayenne.loop();
 	Cayenne.virtualWrite(0,bird_impact);
 	disco = 1;
 }
