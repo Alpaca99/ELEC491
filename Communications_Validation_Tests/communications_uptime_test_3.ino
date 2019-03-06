@@ -2,18 +2,16 @@
 This code is to test the communication reliability of the microcontroller to the two databases.
 The two databases under test are:
 1. MyDevices Cayenne
-2. Google Sh
-
+2. Google Sheets
 This code is adapted from code located at:
 https://www.hackster.io/detox/transmit-esp8266-data-to-google-sheets-8fc617 retrieved January 18, 2019
 https://cayenne.mydevices.com/cayenne/dashboard/arduino/pending//1 retrieved January 18, 2019
-
 The CayenneMQTT Library is required to run this sketch. If you have not already done so you can install it from the Arduino IDE Library Manager.
 This code utilises the Arduino Uno Wifi Rev2 to connect to Cayenne and Google Sheets using Wifi.
-
 */
 
-#define TENMINUTES (600*1000L) // 10 minute marker
+// #define TENMINUTES (600*1000L) // 10 minute marker
+#define TENMINUTES 600 // 10 minutes in seconds
 
 // Cayenne required libraries
 //#define CAYENNE_DEBUG       // Uncomment to show Cayenne debug messages
@@ -45,9 +43,17 @@ char username[] = "7f6eead0-9b4e-11e8-a42a-3f9fb83051a4";
 char password[] = "3607a8f057cc2ac996a72d9d846c7239b27f1aff";
 char clientID[] = "e3a5ca00-1b69-11e9-898f-c12a468aadce";
 
+int disco = 0; // Disconnection error detector
+
 // Impact storage
 int impact = 0;
-int previmpact = 0;
+int previmpact = 1;
+
+// Test variables
+int tenCheck = 0;
+
+  String test = "";
+  int testnum = 0;
 
 // Wifi client for sending data to Google Sheets
 WiFiClient client;  //Instantiate WiFi object
@@ -61,27 +67,80 @@ void setup() {
 	// Time setup
 	timeClient.begin();
 	timeClient.setTimeOffset(-28800);
+	timeClient.update();
+	delay(1000);
+	timeClient.update();
+	delay(1000);
+	test = timeClient.getFormattedTime();
+  testnum = test.substring(3,5).toInt();
 }
 
 unsigned long last10Minutes;
 
 void loop() {
+  
+  if(!timeClient.update()){
+    Serial.println("Timeclient before");
+    timeClient.forceUpdate();
+    Serial.println("Timeclient after");
+  }
+  
+  // Variables for keeping track of time
+
   // Keeping the time client up to date to avoid issues
-  timeClient.update();
+  
+  /*
+  if((millis()%300)==0){
+    test = timeClient.getFormattedTime();
+    testnum = test.substring(3,5).toInt();
+    Serial.println(test);
+    Serial.println(testnum);
+    Serial.println(test.substring(3,5));
+  }
+  */
+  
+//  Serial.println("Loop Check");
+  if((millis()%20000)==0){
+//    timeClient.update();
+    
+    test = timeClient.getFormattedTime();
+    testnum = test.substring(3,5).toInt();
+    Serial.println(testnum);
+    Serial.println(tenCheck);
+  }
   
   // Experimentally incrementing impacts
-  if(millis()-last10Minutes>=TENMINUTES){ // Trigger impact detection every 10 minutes
-    last10Minutes += TENMINUTES; // Incrementing trigger by 10 minutes
+  if(((testnum%30)==29)&&(tenCheck==0)){
+    Serial.println("Waiting on 10 minute mark");
+//    timeClient.update();
+    test = timeClient.getFormattedTime();
+    testnum = test.substring(3,5).toInt();
+    delay(10000);
+  } else  if(((testnum%30)==0)&&(tenCheck==1)){
+    Serial.println("Only one impact per 10 minutes");
+    Serial.println(testnum);
+//    timeClient.update();
+    test = timeClient.getFormattedTime();
+    testnum = test.substring(3,5).toInt();
+    delay(10000);
+  } else if(((testnum%30)==0)&&(tenCheck == 0)){ // Trigger impact detection every 10 minutes
+//    last10Minutes += TENMINUTES; // Incrementing trigger by 10 minutes
     // Serial message for impact detection, in case system is connected to a serial port
     Serial.println("Impact Detected!");
     Serial.println(timeClient.getFormattedDate());
+//    Serial.println(last10Minutes);
     // Experimentally increment impact counter
     previmpact=impact;
     impact = impact+1;
+    tenCheck = 1;
+  } else if(((testnum%30) == 29)&&(tenCheck ==1)){
+    Serial.println("Prepping for test impact");
+//    timeClient.update();
+    tenCheck = 0;
   }
 
   // Dummy time sample to send
-  String timestamp = "2019-02-14T00:00:00";
+  //String timestamp = "2019-02-14T00:00:00";
   // Dummy location sample to send
   String location = "sample_location";
   
@@ -131,13 +190,14 @@ CAYENNE_IN_DEFAULT()
 CAYENNE_CONNECTED()
 {
 	if(disco == 1){
-		Cayenne.virtualWrite(0,bird_impact);
+		Cayenne.virtualWrite(0, impact);
 		disco = 0;
 	}
 }
 
 CAYENNE_DISCONNECTED()
 {
-	Cayenne.virtualWrite(0,bird_impact);
+	Cayenne.virtualWrite(0, impact);
 	disco = 1;
+	delay(5000);
 }
