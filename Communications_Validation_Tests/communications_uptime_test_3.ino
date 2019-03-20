@@ -10,15 +10,15 @@ The CayenneMQTT Library is required to run this sketch. If you have not already 
 This code utilises the Arduino Uno Wifi Rev2 to connect to Cayenne and Google Sheets using Wifi.
 */
 
-// #define TENMINUTES (600*1000L) // 10 minute marker
 #define TENMINUTES 600 // 10 minutes in seconds
 
 // Cayenne required libraries
-//#define CAYENNE_DEBUG       // Uncomment to show Cayenne debug messages
+#define CAYENNE_DEBUG       // Uncomment to show Cayenne debug messages
 #define CAYENNE_PRINT Serial  // Comment this out to disable prints and save space
 #include <CayenneMQTTWiFi.h>
 
 // Required library for Arduino Uno Wifi to connect to Google Sheets 
+
 #include "WiFi.h"
 
 // Libraries for retrieving time from NTP server
@@ -49,8 +49,11 @@ int disco = 0; // Disconnection error detector
 int impact = 0;
 int previmpact = 1;
 
+  String location = "sample_location";
+
 // Test variables
 int tenCheck = 0;
+int flag = 1;
 
   String test = "";
   int testnum = 0;
@@ -61,6 +64,13 @@ WiFiClient client;  //Instantiate WiFi object
 void setup() {
   // Cayenne setup
 	Serial.begin(9600);
+	
+	while( WiFi.status() != WL_CONNECTED) {
+      Serial.println("Error with WiFi connection");
+      WiFi.begin(ssid, wifiPassword);
+      delay(10000);
+    }
+//	Cayenne.begin(clientID, ssid, password);
 	Cayenne.begin(username, password, clientID, ssid, wifiPassword);
 	// Initial data push to Cayenne
 	Cayenne.loop();
@@ -79,11 +89,13 @@ unsigned long last10Minutes;
 
 void loop() {
   
+  /*
   if(!timeClient.update()){
     Serial.println("Timeclient before");
     timeClient.forceUpdate();
     Serial.println("Timeclient after");
   }
+  */
   
   // Variables for keeping track of time
 
@@ -99,9 +111,30 @@ void loop() {
   }
   */
   
+  /*
+  if( flag == 1 ){
+    if((millis()%1800000)>1000){
+      Serial.println("Flag Reset");
+      flag = 0;
+    }
+  } else if((millis()%1800000)<=500){
+    if(!timeClient.update()){
+      Serial.println("Timeclient before");
+      timeClient.forceUpdate();
+      Serial.println("Timeclient after");
+    }
+    previmpact=impact;
+    impact = impact+1;
+    test = timeClient.getFormattedTime();
+    testnum = test.substring(3,5).toInt();
+    flag = 1;
+  }
+  */
+  
+  /*
 //  Serial.println("Loop Check");
-  if((millis()%20000)==0){
-//    timeClient.update();
+  if((millis()%10000)==0){
+    timeClient.update();
     
     test = timeClient.getFormattedTime();
     testnum = test.substring(3,5).toInt();
@@ -110,20 +143,20 @@ void loop() {
   }
   
   // Experimentally incrementing impacts
-  if(((testnum%30)==29)&&(tenCheck==0)){
+  if(((testnum%3)==2)&&(tenCheck==0)){
     Serial.println("Waiting on 10 minute mark");
-//    timeClient.update();
+    timeClient.update();
     test = timeClient.getFormattedTime();
     testnum = test.substring(3,5).toInt();
     delay(10000);
-  } else  if(((testnum%30)==0)&&(tenCheck==1)){
+  } else  if(((testnum%3)==0)&&(tenCheck==1)){
     Serial.println("Only one impact per 10 minutes");
     Serial.println(testnum);
-//    timeClient.update();
+    timeClient.update();
     test = timeClient.getFormattedTime();
     testnum = test.substring(3,5).toInt();
     delay(10000);
-  } else if(((testnum%30)==0)&&(tenCheck == 0)){ // Trigger impact detection every 10 minutes
+  } else if(((testnum%3)==0)&&(tenCheck == 0)){ // Trigger impact detection every 10 minutes
 //    last10Minutes += TENMINUTES; // Incrementing trigger by 10 minutes
     // Serial message for impact detection, in case system is connected to a serial port
     Serial.println("Impact Detected!");
@@ -133,22 +166,44 @@ void loop() {
     previmpact=impact;
     impact = impact+1;
     tenCheck = 1;
-  } else if(((testnum%30) == 29)&&(tenCheck ==1)){
+  } else if(((testnum%3) == 2)&&(tenCheck ==1)){
     Serial.println("Prepping for test impact");
-//    timeClient.update();
+    timeClient.update();
     tenCheck = 0;
   }
+  */
+  
+  /*
+  if((testnum%30)==1){
+    Serial.println("TenCheck fix");
+    tenCheck = 0;
+  }
+  */
 
   // Dummy time sample to send
   //String timestamp = "2019-02-14T00:00:00";
   // Dummy location sample to send
-  String location = "sample_location";
+
   
   // Condition is if a new impact has been registered
   if(impact != previmpact){
     
-  	Cayenne.loop();
+    while( WiFi.status() != WL_CONNECTED) {
+      Serial.println("Error with WiFi connection");
+      WiFi.begin(ssid, wifiPassword);
+      delay(20000);
+    }
     
+    timeClient.update();
+    
+    test = timeClient.getFormattedTime();
+    testnum = test.substring(3,5).toInt();
+    Serial.println("Impact Detected");
+    Serial.println(testnum);
+    Serial.println(tenCheck);
+    
+  	Cayenne.loop();
+
       //Start API service using our WiFi Client through PushingBox
       if (client.connect(WEBSITE, 80))
         { 
@@ -163,6 +218,8 @@ void loop() {
         client.println(WEBSITE);
         client.println("Connection: close");
         client.println();
+//        client.flush();
+        client.stop();
         }
       else
         {
@@ -170,14 +227,27 @@ void loop() {
         }
     previmpact = impact;
   }
+  Serial.println("Loop Check");
+//  delay(60000);
+  delay(2*1800000);
+  impact = impact+1;
 
 }
 
 // Default function for sending sensor data at intervals to Cayenne.
 CAYENNE_OUT_DEFAULT()
 {
+  while( WiFi.status() != WL_CONNECTED) {
+      Serial.println("Error with WiFi connection");
+      WiFi.begin(ssid, wifiPassword);
+      delay(20000);
+    }
+    
+    Serial.println(impact);
+    Serial.println("Cayenne Out");
 	// Send impact data to Cayenne
 	Cayenne.virtualWrite(0, impact);
+  Serial.println("Cayenne Out After");
 }
 
 // Default function for processing actuator commands from the Cayenne Dashboard.
@@ -189,15 +259,31 @@ CAYENNE_IN_DEFAULT()
 
 CAYENNE_CONNECTED()
 {
-	if(disco == 1){
-		Cayenne.virtualWrite(0, impact);
+	if(disco > 0){
+	  Cayenne.loop();
+//		Cayenne.virtualWrite(0, impact);
 		disco = 0;
 	}
 }
 
 CAYENNE_DISCONNECTED()
 {
-	Cayenne.virtualWrite(0, impact);
-	disco = 1;
+  
+  while( WiFi.status() != WL_CONNECTED) {
+      Serial.println("Error with WiFi connection");
+      WiFi.begin(ssid, wifiPassword);
+      delay(20000);
+    }
+    
+//  WiFi.disconnect();
+//  Cayenne.begin(username, password, clientID, ssid, wifiPassword);
+  Cayenne.loop();
+//	Cayenne.virtualWrite(0, impact);
+	disco++;
+	Serial.println(disco);
+/*	if(disco > 5){
+	  WiFi.disconnect();
+	  Cayenne.begin(username, password, clientID, ssid, wifiPassword);
+	}*/
 	delay(5000);
 }
