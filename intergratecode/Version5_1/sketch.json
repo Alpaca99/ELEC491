@@ -1,0 +1,1 @@
+{"cpu":{"architecture":"megaavr","category":"free","fqbn":"arduino:megaavr:uno2018:mode=on","href":"/v3/boards/arduino:megaavr:uno2018","id":"uno2018","menus":[{"id":"mode","name":"Registers emulation","variants":[{"id":"on","name":"ATMEGA328"}]}],"name":"Arduino Uno WiFi Rev2","package":"arduino","com_name":"COM7","unknown":false},"secrets":[]}

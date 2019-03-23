@@ -1,3 +1,6 @@
+// arduinoFFT - Version: Latest 
+#include <arduinoFFT.h>
+
 #include <ezTime.h>
 
 const int Pin1 = A0;
@@ -15,6 +18,18 @@ const int Pin1 = A0;
 //Variables for retrieving time
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
+
+
+arduinoFFT FFT = arduinoFFT();
+
+float Voltage_Log[512]; // Log size = (max impact duration)0.4 sec * (sampling frequency)4000 sample per second 
+float vImag[512];
+float peaks[4];
+
+#define SCL_INDEX 0x00
+#define SCL_TIME 0x01
+#define SCL_FREQUENCY 0x02
+#define SCL_PLOT 0x03
 
 // Website and ID for API to push data to Google Sheets
 const char WEBSITE[] = "api.pushingbox.com";	//pushingbox API server
@@ -42,14 +57,12 @@ WiFiClient client;  //Instantiate WiFi object
 void setup() {
 	pinMode(Pin1, INPUT); 
 	Serial.begin(115200);
-	Serial.println("GO000000000000000");
 	Cayenne.begin(username, password, clientID, ssid, wifiPassword);
 	// Initial data push to Cayenne
 	Cayenne.loop();
 	// Time setup
 	timeClient.begin();
 	timeClient.setTimeOffset(-28800);
-	Serial.println("G111111111111111");
 	bird_impact=0;
 	state=0;
 }
@@ -60,12 +73,12 @@ void loop() {
 	bool enter_state = true;
 	uint32_t start_time;
 	//state 1 variables
-	int voltage;
-	int voltage_scaner[50];
+	float voltage;
+	float voltage_scaner[50];
 	int scaner_index = 0;
-	int maxV=0;
-	int minV=1023;
-  
+	float maxV=0;
+	float minV=1023;
+  float noiseFloor = 2;
 
   
 	//Check whether state is normal
@@ -108,8 +121,8 @@ void loop() {
 		//Check array for triggering voltage difference
 		if(scaner_index == 49){
 			//Serial.println("OK");
-			maxV = 300.00;
-			minV = 600.00;
+			maxV = voltage_scaner[0];
+			minV = voltage_scaner[0];
 			int index=0;
 			while(index<50){
 				//Serial.println(index);
@@ -124,11 +137,6 @@ void loop() {
 				}
 				index++;
 			}
-		  
-			int diff=maxV-minV;
-			//Serial.println(maxV);
-			//Serial.println(minV);
-			//Serial.println(diff);
 		}
     
 		if(scaner_index<50){
@@ -138,7 +146,8 @@ void loop() {
 			scaner_index = 0;
 		}
 		
-		if(maxV-minV > 150){                 // Change the threshold difference here!!!
+		//Threshold to trigger the impulse detection
+		if(maxV-minV > noiseFloor*10){                
 			Serial.println("Suspect!");
 			enter_state = true;
 			state = 2;
@@ -151,16 +160,14 @@ void loop() {
 		}
 	} // End of state1
 
-  // State 2: wait until voltage get stable (Takes approximately 5 seconds)
+  // State 2: Impact Verification
 	while (state == 2){
 		if(enter_state == true){
 			enter_state = false;
 			Serial.println("State 2");
 		}
-    
 		//Serial.println(millis());
-    
-		int Voltage_Log[512]; // Log size = (max impact duration)0.4 sec * (sampling frequency)4000 sample per second 
+    bool flag = false;
 		int index2 = 50;
 		
 		while(index2<512){
@@ -181,7 +188,8 @@ void loop() {
 		// Check for duration
 		int pulse_count=0;
 		for(int i=0;i<512;i++){
-			//Serial.println(Voltage_Log[i]);
+			Serial.println(Voltage_Log[i]);
+			
 			if(i%50 == 0){
 				maxV = 0;
 				minV = 1023;
@@ -189,22 +197,54 @@ void loop() {
 			else{
 				maxV = max(maxV,Voltage_Log[i]);
 				minV = min(minV,Voltage_Log[i]);
-			}    
-			if( maxV-minV > 100 && i%50==49){              // Change the threshold difference here!!!
+			}
+			if( (maxV-minV > noiseFloor*4) && (i%50==49)){
 				pulse_count++;
 			}
+		}
+		Serial.println(pulse_count);
+    if(pulse_count>3){
+      flag = true; 
+    }
+    
+    // Voltage Damping    
+    
+		//frequency analysis
+		if(flag == true){
+		  float sumV=0;
+      for(int j=0;j<512;j++){
+        sumV+=Voltage_Log[j];
+      }
+      sumV=sumV/512;
+      for(int k=0;k<512;k++){
+        Voltage_Log[k]=Voltage_Log[k]-sumV;
+        vImag[k] = 0.0;
+      }
+      FFT.Windowing(Voltage_Log, 512, FFT_WIN_TYP_HAMMING, FFT_FORWARD);	/* Weigh data */
+      FFT.Compute(Voltage_Log, vImag, 512, FFT_FORWARD); /* Compute FFT */
+      FFT.ComplexToMagnitude(Voltage_Log, vImag, 512); /* Compute magnitudes */
+      //PrintVector(Voltage_Log, (512 >> 1), SCL_FREQUENCY);
+      Serial.println("Peaks:");
+      peaks[0] = findPeaks(Voltage_Log, 256, 2000);
+      peaks[1] = findPeaks(Voltage_Log, 256, 2000);
+      peaks[2] = findPeaks(Voltage_Log, 256, 2000);
+      peaks[3] = findPeaks(Voltage_Log, 256, 2000);
       
+		  flag = peakRangeCheck(peaks[0],1);
+		  flag = peakRangeCheck(peaks[1],1);
+		  
+		  if(flag == false){
+		    flag = peakRangeCheck(peaks[0],2);
+		    flag = peakRangeCheck(peaks[1],2);
+		    flag = peakRangeCheck(peaks[2],1);
+		    flag = peakRangeCheck(peaks[3],1);
+		  }
 		}
     
-    
-		// Voltage Damping
-
-		Serial.println(pulse_count);
-    
-		if((pulse_count<4)){ // back to state 1
+		if((flag == false)){ // back to state 1
 			state = 1;
-			enter_state = true;
-		} // leaving state
+  		enter_state = true;
+	  } // leaving state
 
 		else{ // go to state 3
 			state = 3;
@@ -282,4 +322,77 @@ CAYENNE_DISCONNECTED()
 	//Cayenne.loop();
 	Cayenne.virtualWrite(0,bird_impact);
 	disco = 1;
+}
+
+void PrintVector(float *vData, uint16_t bufferSize, uint8_t scaleType)
+{
+  for (uint16_t i = 0; i < bufferSize; i++)
+  {
+    float abscissa;
+    /* Print abscissa value */
+    switch (scaleType)
+    {
+      case SCL_INDEX:
+        abscissa = (i * 1.0);
+  break;
+      case SCL_TIME:
+        abscissa = ((i * 1.0) / 2000);
+  break;
+      case SCL_FREQUENCY:
+        abscissa = ((i * 1.0 * 2000) / 512);
+  break;
+    }
+    Serial.print(abscissa, 6);
+    if(scaleType==SCL_FREQUENCY)
+      Serial.print("Hz");
+    Serial.print(" ");
+    Serial.println(vData[i], 4);
+  }
+  Serial.println();
+}
+
+float findPeaks(float *vD, uint16_t samples, float samplingFrequency)
+{
+	float maxY = 0;
+	uint16_t IndexOfMaxY = 0;
+	
+	for(uint16_t i=0;i<samples;i++){
+    if((i > 0) && (i < samples-1)){
+			if(vD[i] > maxY){
+				maxY=vD[i];
+				IndexOfMaxY=i;
+			}
+    }
+  }
+  if((IndexOfMaxY>0) && (IndexOfMaxY<samples-1)){
+    vD[IndexOfMaxY]=0;
+    vD[IndexOfMaxY+1]=0;
+    vD[IndexOfMaxY-1]=0;
+  }
+  float peakF = 0;
+  peakF = ((IndexOfMaxY * 1.0 * 2000) / 512);
+  Serial.print(peakF);
+  Serial.println("Hz");
+  return peakF;
+}
+
+bool peakRangeCheck(float peak, int primary)
+{
+  if(primary=1){
+    if((peak<90) && (peak>60)){
+      return true;
+    }
+    if((peak<190) && (peak>160)){
+      return true;
+    }
+  }
+  else{
+    if((peak<130) && (peak>110)){
+      return true;
+    }
+    if((peak<260) && (peak>240)){
+      return true;
+    }
+  } 
+  return false;
 }

@@ -11,10 +11,21 @@ const int Pin1 = A0;
 #include "WiFi.h"				// Required library for Arduino Uno Wifi to connect to Google Sheets 
 #include <NTPClient.h>			// Libraries for retrieving time from NTP server
 #include <WiFiUdp.h>
+#include "arduinoFFT.h"
 
 //Variables for retrieving time
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
+
+
+arduinoFFT FFT = arduinoFFT();
+float vReal[512];
+float vImag[512];
+
+#define SCL_INDEX 0x00
+#define SCL_TIME 0x01
+#define SCL_FREQUENCY 0x02
+#define SCL_PLOT 0x03
 
 // Website and ID for API to push data to Google Sheets
 const char WEBSITE[] = "api.pushingbox.com";	//pushingbox API server
@@ -195,6 +206,9 @@ void loop() {
 			}
       
 		}
+
+    //frequency check
+
     
     
 		// Voltage Damping
@@ -282,4 +296,31 @@ CAYENNE_DISCONNECTED()
 	//Cayenne.loop();
 	Cayenne.virtualWrite(0,bird_impact);
 	disco = 1;
+}
+
+void PrintVector(float *vData, uint16_t bufferSize, uint8_t scaleType)
+{
+  for (uint16_t i = 0; i < bufferSize; i++)
+  {
+    float abscissa;
+    /* Print abscissa value */
+    switch (scaleType)
+    {
+      case SCL_INDEX:
+        abscissa = (i * 1.0);
+  break;
+      case SCL_TIME:
+        abscissa = ((i * 1.0) / 2000);
+  break;
+      case SCL_FREQUENCY:
+        abscissa = ((i * 1.0 * 2000) / 512);
+  break;
+    }
+    Serial.print(abscissa, 6);
+    if(scaleType==SCL_FREQUENCY)
+      Serial.print("Hz");
+    Serial.print(" ");
+    Serial.println(vData[i], 4);
+  }
+  Serial.println();
 }

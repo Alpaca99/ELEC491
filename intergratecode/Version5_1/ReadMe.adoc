@@ -1,6 +1,6 @@
-﻿:Author: DavidHe
-:Email: DavidHe9306@gmail.com
-:Date: 03/02/2019
+:Author: DavidHe
+:Email: {AuthorEmail}
+:Date: 20/03/2019
 :Revision: version#
 :License: Public Domain
 
