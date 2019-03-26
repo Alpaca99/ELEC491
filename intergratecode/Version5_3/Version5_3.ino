@@ -20,7 +20,7 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
 
-arduinoFFT FFT = arduinoFFT();
+//arduinoFFT FFT = arduinoFFT();
 
 float Voltage_Log[512]; // Log size = (max impact duration)0.4 sec * (sampling frequency)4000 sample per second 
 //float vImag[512];
@@ -56,6 +56,7 @@ WiFiClient client;  //Instantiate WiFi object
 //Arduino initialization - Connect to Cayenne and the time server
 void setup() {
 	pinMode(Pin1, INPUT); 
+	pinMode(12, OUTPUT);
 	Serial.begin(115200);
 	Cayenne.begin(username, password, clientID, ssid, wifiPassword);
 	// Initial data push to Cayenne
@@ -80,7 +81,8 @@ void loop() {
 	float maxV=0;
 	float minV=1023;
   float noiseFloor = 2;
-  float vImag[512];
+  digitalWrite(12, LOW);
+
 
   
 	//Check whether state is normal
@@ -113,6 +115,7 @@ void loop() {
 			Serial.println("State 1");
 			enter_state = false;
 			scaner_index = 0;
+			digitalWrite(12, HIGH);
 		}
     
 		// scan the voltage
@@ -154,6 +157,7 @@ void loop() {
 			//Serial.println("Suspect!");
 			enter_state = true;
 			state = 2;
+			digitalWrite(12, LOW);
 		}// leaving state 1
 	  
 		// loop time controller
@@ -211,30 +215,10 @@ void loop() {
     }
     
     // Voltage Damping    
-    
+
 		//frequency analysis
 		if(flag == true){
-		  float sumV=0;
-      for(int j=0;j<512;j++){
-        sumV+=Voltage_Log[j];
-      }
-      sumV=sumV/512;
-      for(int k=0;k<512;k++){
-        Voltage_Log[k]=Voltage_Log[k]-sumV;
-        vImag[k] = 0.0;
-      }
-      FFT.Windowing(Voltage_Log, 512, FFT_WIN_TYP_HAMMING, FFT_FORWARD);	/* Weigh data */
-      FFT.Compute(Voltage_Log, vImag, 512, FFT_FORWARD); /* Compute FFT */
-      FFT.ComplexToMagnitude(Voltage_Log, vImag, 512); /* Compute magnitudes */
-      //PrintVector(Voltage_Log, (512 >> 1), SCL_FREQUENCY);
-      //Serial.println("Peaks:");
-      peaks[0] = findPeaks(Voltage_Log, 256, 2000);
-      peaks[1] = findPeaks(Voltage_Log, 256, 2000);
-      peaks[2] = findPeaks(Voltage_Log, 256, 2000);
-      peaks[3] = findPeaks(Voltage_Log, 256, 2000);
-      
-		  flag = peakRangeCheck(peaks);
-		  
+		  flag = frequencyAnalysis(Voltage_Log);
 		}
     
 		if((flag == false)){ // back to state 1
@@ -338,6 +322,36 @@ CAYENNE_DISCONNECTED()
 	disco = 1;
 }
 
+bool frequencyAnalysis(float *vD){
+  arduinoFFT FFT = arduinoFFT();
+  float vImag[512];
+  float sumV=0;
+  bool flag = true;
+  
+  for(int j=0;j<512;j++){
+    sumV+=vD[j];
+  }
+  sumV=sumV/512;
+  for(int k=0;k<512;k++){
+    vD[k]=vD[k]-sumV;
+    vImag[k] = 0.0;
+  }
+  FFT.Windowing(Voltage_Log, 512, FFT_WIN_TYP_HAMMING, FFT_FORWARD);	/* Weigh data */
+  FFT.Compute(Voltage_Log, vImag, 512, FFT_FORWARD); /* Compute FFT */
+  FFT.ComplexToMagnitude(Voltage_Log, vImag, 512); /* Compute magnitudes */
+  //PrintVector(Voltage_Log, (512 >> 1), SCL_FREQUENCY);
+  //Serial.println("Peaks:");
+  peaks[0] = findPeaks(Voltage_Log, 256, 2000);
+  peaks[1] = findPeaks(Voltage_Log, 256, 2000);
+  peaks[2] = findPeaks(Voltage_Log, 256, 2000);
+  peaks[3] = findPeaks(Voltage_Log, 256, 2000);
+      
+	flag = peakRangeCheck(peaks);
+	
+	return flag;
+		  
+}
+
 float findPeaks(float *vD, uint16_t samples, float samplingFrequency)
 {
 	float maxY = 0;
@@ -358,8 +372,8 @@ float findPeaks(float *vD, uint16_t samples, float samplingFrequency)
   }
   float peakF = 0;
   peakF = ((IndexOfMaxY * 1.0 * 2000) / 512);
-  //Serial.print(peakF);
-  //Serial.println("Hz");
+  Serial.print(peakF);
+  Serial.println("Hz");
   return peakF;
 }
 
@@ -415,7 +429,7 @@ bool peakRangeCheck(float *peak)
       flag = false;
     }
   }
-  Serial.println(i);
+  //Serial.println(i);
   if(i>=3){
     return true;
   }
