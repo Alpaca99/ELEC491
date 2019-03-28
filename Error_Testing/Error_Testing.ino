@@ -1,7 +1,8 @@
-/* #include <ezTime.h>
- */
-#include <avr/wdt.h>
-const int Pin1 = A0;
+#include <EEPROM.h>
+
+
+int i;
+
 byte value = RSTCTRL.RSTFR;
 
 
@@ -9,12 +10,12 @@ byte value = RSTCTRL.RSTFR;
 //Arduino initialization - Connect to Cayenne and the time server
 void setup() {
 	byte value = RSTCTRL.RSTFR;
-	pinMode(Pin1, INPUT);
 	pinMode(LED_BUILTIN, OUTPUT);
 	Serial.begin(115200);
 	Serial.println("Hello World");
 	Serial.println("Hello World");
-	int t = 0;	
+	int t = 0;
+	
 	//Power-Up Errors
 	//Check if Arduino Power was lost or reset
 	/*
@@ -55,14 +56,15 @@ void setup() {
 		Serial.println("RSTCTRL.RSTFR = ");
 		Serial.println(value);
 		
+		i = 0;
+		// while(t < 10){
+			// digitalWrite(LED_BUILTIN, HIGH);
+			// delay(1000);
+			// digitalWrite(LED_BUILTIN, LOW);
+			// delay(1000);
+			// t++;
 		
-		while(t < 10){
-			digitalWrite(LED_BUILTIN, HIGH);
-			delay(1000);
-			digitalWrite(LED_BUILTIN, LOW);
-			delay(1000);
-			t++;
-		}
+		//}
 	}
  
 	//(RSTCTRL.RSTFR & (1 << 2))
@@ -74,14 +76,15 @@ void setup() {
 		Serial.println("A Reset Occurred!");
 		Serial.println("RSTCTRL.RSTFR = ");
 		Serial.println(value);
-		while(t < 50){
-			digitalWrite(LED_BUILTIN, HIGH);
-			delay(100);
-			digitalWrite(LED_BUILTIN, LOW);
-			delay(100);
-			t++;
-		}
-    
+		// while(t < 50){
+			// digitalWrite(LED_BUILTIN, HIGH);
+			// delay(100);
+			// digitalWrite(LED_BUILTIN, LOW);
+			// delay(100);
+			// t++;
+		// }
+		
+		i = EEPROM.read(0);
 	}
 	//((RSTCTRL.RSTFR >> 3)& 1 )
 	else if (RSTCTRL.RSTFR & B00001000){
@@ -108,6 +111,23 @@ void setup() {
 }
 
 void loop() {
+	for(int j = 0; j < 6; j++){
+		if(i == 1){
+			digitalWrite(LED_BUILTIN, HIGH);
+			delay(1000);
+			digitalWrite(LED_BUILTIN, LOW);
+			delay(1000);
+		}
+		else {
+			i = 1;
+			EEPROM.write(0, i);
+			while(1){
+				digitalWrite(LED_BUILTIN, HIGH);
+				delay(500);
+				digitalWrite(LED_BUILTIN, LOW);
+				delay(500);
+			}
+		}
+	}
 	
- 
 }//End of program
